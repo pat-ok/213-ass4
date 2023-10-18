@@ -238,16 +238,30 @@ void *myheap_malloc(struct myheap *h, unsigned int user_size) {
 
   void* potential_block = h;
   void* allocated_block_payload = NULL;
+  int needed_block_size = get_size_to_allocate(user_size);
   int found = 0;
   
-  // look for a block 1. not in use 2. big enough 3. within heap
-  // does this method take the end of the block or the beginning?
+  // does is_within_heap_range method take the end of the block or the beginning?
+  // look through the heap within range for potential blocks
   while (is_within_heap_range(h, potential_block) && found != 1) {
-    if ((!block_is_in_use(potential_block)) && (get_block_size(potential_block) >= user_size)) {
+    // if the potential block is not in use and it is large enough
+    if ((!block_is_in_use(potential_block)) && (get_block_size(potential_block) >= needed_block_size)) {
+      // mark the block as used
+      split_and_mark_used(h, potential_block, needed_block_size);
+      // get the pointer to the payload
       allocated_block_payload = get_payload(potential_block);
+      // set found = true
       found = 1;
+
+    // if it is not a suitable block
     } else {
-      potential_block = get_next_block(potential_block);
+      // move potential block to next block if it is not already the last block  
+      if (!is_last_block(h, potential_block)) {
+        potential_block = get_next_block(potential_block);
+      } else {
+        // exit loop
+        found = 1;
+      }
     }
   }
 
