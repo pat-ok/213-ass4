@@ -236,7 +236,7 @@ void myheap_free(struct myheap *h, void *payload) {
  */
 void *myheap_malloc(struct myheap *h, unsigned int user_size) {
 
-  void* potential_block = h;
+  void* potential_block = h->start;
   void* allocated_block_payload = NULL;
   int needed_block_size = get_size_to_allocate(user_size);
   int found = 0;
