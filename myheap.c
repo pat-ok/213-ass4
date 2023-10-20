@@ -140,7 +140,7 @@ static void *coalesce(struct myheap *h, void *first_block_start)
     set_block_header(first_block_start, get_block_size(first_block_start) + get_block_size(next_block), 0);
   }
 
-  return NULL;
+  return first_block_start;
 }
 
 /*
@@ -151,7 +151,14 @@ static void *coalesce(struct myheap *h, void *first_block_start)
  */
 static int get_size_to_allocate(int user_size)
 {
-  return user_size + HEADER_SIZE - (user_size % HEADER_SIZE) + HEADER_SIZE * 2;
+  int padding;
+  if (user_size % HEADER_SIZE == 0) { // if the user_size is aligned to 8
+    padding = 0; // no padding
+  } else { // otherwise:
+    padding = HEADER_SIZE - (user_size % HEADER_SIZE); // add appropriate padding
+  }
+
+  return user_size + padding + HEADER_SIZE * 2;
 }
 
 /*
@@ -171,7 +178,7 @@ static void *split_and_mark_used(struct myheap *h, void *block_start, int needed
   if (leftover_block_size >= (HEADER_SIZE * 3))
   {
     // Split block into two and mark first as in use, and second as free
-    set_block_header(block_start, needed_size, 1);                         // first block
+    set_block_header(block_start, needed_size, 1); // first block
     set_block_header(get_next_block(block_start), leftover_block_size, 0); // second block
   }
   else
@@ -232,7 +239,8 @@ void *myheap_malloc(struct myheap *h, unsigned int user_size)
   int required_block_size = get_size_to_allocate(user_size);
 
   // if required size is larger than the heap size:
-  if (required_block_size > h->size) {
+  if (required_block_size > h->size)
+  {
     return NULL;
   }
 
