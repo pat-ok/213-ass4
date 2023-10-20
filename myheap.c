@@ -151,7 +151,7 @@ static void *coalesce(struct myheap *h, void *first_block_start)
  */
 static int get_size_to_allocate(int user_size)
 {
-  return user_size + HEADER_SIZE - (user_size % 8) + HEADER_SIZE * 2;
+  return user_size + HEADER_SIZE - (user_size % HEADER_SIZE) + HEADER_SIZE * 2;
 }
 
 /*
@@ -180,7 +180,7 @@ static void *split_and_mark_used(struct myheap *h, void *block_start, int needed
     set_block_header(block_start, block_size_before_split, 1);
   }
 
-  return block_start + HEADER_SIZE;
+  return get_payload(block_start);
 }
 
 /*
@@ -211,16 +211,14 @@ struct myheap *heap_create(unsigned int size)
 void myheap_free(struct myheap *h, void *payload)
 {
   void *block_start = get_block_start(payload);
-  void *prev_block = (!is_first_block(h, block_start)) ? get_previous_block(block_start) : NULL;
-  void *next_block = (!is_last_block(h, block_start)) ? get_next_block(block_start) : NULL;
   set_block_header(block_start, get_block_size(block_start), 0);
-  if (next_block && !block_is_in_use(next_block))
+  if (!is_last_block(h, block_start)) // if the current block is not the last one
   {
     coalesce(h, block_start); // coalesce this block with the next one
   }
-  if (prev_block && !block_is_in_use(prev_block))
+  if (!is_first_block(h, block_start)) // if the current block is not the first one
   {
-    coalesce(h, prev_block); // coalesce the last block with this one
+    coalesce(h, get_previous_block(block_start)); // coalesce the last block with this one
   }
 }
 
@@ -232,7 +230,12 @@ void myheap_free(struct myheap *h, void *payload)
 void *myheap_malloc(struct myheap *h, unsigned int user_size)
 {
   int required_block_size = get_size_to_allocate(user_size);
-  void *block_payload;
+
+  // if required size is larger than the heap size:
+  if (required_block_size > h->size) {
+    return NULL;
+  }
+
   // loop through all blocks:
   for (void *blk = h->start; is_within_heap_range(h, blk); blk = get_next_block(blk))
   {
@@ -241,8 +244,7 @@ void *myheap_malloc(struct myheap *h, unsigned int user_size)
     // if the block is NOT in use and the block size satisfies the request
     if (!block_is_in_use(blk) && block_size >= required_block_size)
     { // if current block can fit needed
-      block_payload = split_and_mark_used(h, blk, required_block_size);
-      return block_payload;
+      return split_and_mark_used(h, blk, required_block_size);
     }
   }
 
